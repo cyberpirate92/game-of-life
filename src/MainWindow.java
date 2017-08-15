@@ -33,14 +33,14 @@ public class MainWindow extends JFrame {
 	private static final Color DEFAULT_GUI_BACKGROUND = Color.BLACK;
 	private static final Color DEFAULT_GUI_FOREGROUND = Color.GREEN;
 	private static final Border DEFAULT_BORDER = BorderFactory.createLineBorder(Color.DARK_GRAY);
-	private static final Font DEFAULT_GUI_FONT = new Font("Consolas", 13, Font.PLAIN);
+	private static final Font DEFAULT_GUI_FONT = new Font("Unifont", Font.PLAIN, 13);
 	
 	// Unicode characters
 	private static final String PLAY = "START \u23F5";
 	private static final String PAUSE = "PAUSE \u23F8";
 	private static final String STOP = "STOP \u23F9";
 	private static final String UP_ARROW = "\u2191";
-	private static final String DOWN_ARROW = "\u2193";
+	private static final String DOWN_ARROW = "\u2193"; 
 	
 	private static final int TICK_INTERVAL = 100; //milliseconds
 	
@@ -48,9 +48,10 @@ public class MainWindow extends JFrame {
 	private int currentGridSize;
 	private int curGeneration, curPopulation, maxPopulation, minPopulation, avgPopulation, totPopulation;
 	private JPanel[][] grid;
-	JButton init, start, stop, plusOne;
+	JButton init, start, stop, plusOne, reset;
 	private int[][] cells;
 	private JPanel gridPanel, settingsPanel;
+	private JLabel cgLabel, cpLabel, mxpLabel, mnpLabel, agpLabel, pdLabel;
 	private Timer tickTimer;
 	private ArrayList<Integer> population;
 	
@@ -77,7 +78,7 @@ public class MainWindow extends JFrame {
 		this.getContentPane().add(settingsPanel);
 		
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		this.setSize(750, 500);
+		this.setSize(900, 500);
 		this.setLocationRelativeTo(null);
 		this.setVisible(true);
 	}
@@ -106,22 +107,41 @@ public class MainWindow extends JFrame {
 		centerPanel.setBackground(DEFAULT_GUI_BACKGROUND);
 		bottomPanel.setBackground(DEFAULT_GUI_BACKGROUND);
 		
+		reset = new JButton("Reset");
 		init = new JButton("Random Initialization");
 		start = new JButton(PLAY);
 		stop = new JButton(STOP);
 		plusOne = new JButton("+1");
+		
+		reset.setFont(DEFAULT_GUI_FONT);
+		init.setFont(DEFAULT_GUI_FONT);
+		start.setFont(DEFAULT_GUI_FONT);
+		stop.setFont(DEFAULT_GUI_FONT);
+		plusOne.setFont(DEFAULT_GUI_FONT);
 		
 		start.setEnabled(false);
 		stop.setEnabled(false);
 		plusOne.setEnabled(false);
 		
 		// event listeners
+		reset.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if(inProgress)
+					haltGame();
+				grid = new JPanel[currentGridSize][currentGridSize];
+				cells = new int[currentGridSize][currentGridSize];
+				initGrid();
+			}
+		});
+		
 		init.addActionListener(new ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				if(!inProgress) {
 					generateRandomPopulation();
 					start.setEnabled(true);
+					reset.setEnabled(true);
 				}
 			}
 		});
@@ -147,8 +167,7 @@ public class MainWindow extends JFrame {
 		stop.addActionListener(new ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				inProgress = false;
-				stopTicking();
+				haltGame();
 			}
 		});
 		
@@ -161,6 +180,7 @@ public class MainWindow extends JFrame {
 		
 		topPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
 		topPanel.add(init);
+		topPanel.add(reset);
 		
 		centerPanel.setLayout(new BorderLayout());
 		centerPanel.add(getStatsPanel(), BorderLayout.CENTER);
@@ -181,13 +201,19 @@ public class MainWindow extends JFrame {
 		JPanel temp = new JPanel();
 		temp.setBackground(DEFAULT_GUI_BACKGROUND);
 		temp.setForeground(DEFAULT_GUI_FOREGROUND);
-		//temp.setLayout(new BoxLayout(temp, BoxLayout.Y_AXIS));
-		//temp.setLayout(new FlowLayout(FlowLayout.LEFT));
-		temp.add(getStylizedLabel("Current Generation: " + curGeneration));
-		temp.add(getStylizedLabel("Maximum Population: " + maxPopulation));
-		temp.add(getStylizedLabel("Minimum Population: " + minPopulation));
-		temp.add(getStylizedLabel("Percentage Change : " + percentToString(getPercentageDifference())));
-		temp.add(getStylizedLabel("Average Population: " + avgPopulation));
+		temp.setLayout(new BoxLayout(temp, BoxLayout.Y_AXIS));
+		
+		cpLabel = getStylizedLabel("Current Generation: " + curGeneration);
+		mxpLabel = getStylizedLabel("Maximum Population: " + maxPopulation);
+		mnpLabel = getStylizedLabel("Minimum Population: " + minPopulation);
+		pdLabel = getStylizedLabel("Percentage Change : " + percentToString(getPercentageDifference()));
+		agpLabel = getStylizedLabel("Average Population: " + avgPopulation);
+		
+		temp.add(cpLabel);
+		temp.add(mxpLabel);
+		temp.add(mnpLabel);
+		temp.add(pdLabel);
+		temp.add(agpLabel);
 		return temp;
 	}
 	
@@ -199,7 +225,7 @@ public class MainWindow extends JFrame {
 		JLabel label = new JLabel(text);
 		//label.setBackground(DEFAULT_GUI_BACKGROUND);
 		//label.setFont(DEFAULT_GUI_FONT);
-		//label.setForeground(DEFAULT_GUI_FOREGROUND);
+		label.setForeground(DEFAULT_GUI_FOREGROUND);
 		return label;
 	}
 	
@@ -317,7 +343,25 @@ public class MainWindow extends JFrame {
 		population.add(curPopulation);
 		totPopulation += curPopulation;
 		avgPopulation = totPopulation/curGeneration;
+		updateLabels();
+		if(isTerminalStage()) {
+			haltGame();
+		}
 	}
+	
+	private void disableActionButtons() {
+		start.setEnabled(false);
+		stop.setEnabled(false);
+		plusOne.setEnabled(false);
+	}
+	
+	private void haltGame() {
+		inProgress = false;
+		stopTicking();	
+		start.setText(PLAY);
+		disableActionButtons();
+	}
+	
 	
 	// get population difference between current & last gen
 	private int getPopulationDifference() {
@@ -347,5 +391,25 @@ public class MainWindow extends JFrame {
 			str += UP_ARROW;
 		str += " (" + difference + ")";
 		return str;
+	}
+	
+	private void updateLabels() {
+		cpLabel.setText("Current Generation: " + curGeneration);
+		mxpLabel.setText("Maximum Population: " + maxPopulation);
+		mnpLabel.setText("Minimum Population: " + minPopulation);
+		pdLabel.setText("Percentage Change : " + percentToString(getPercentageDifference()));
+		agpLabel.setText("Average Population: " + avgPopulation);
+	}
+	
+	private boolean isTerminalStage() {
+		if(population.size() > 25) {
+			int i;
+			for(i=population.size()-2; i>0; i--)
+				if(population.get(i+1) != population.get(i))
+					break;
+			if(population.size() - i >= 25)
+				return true;
+		}
+		return false;
 	}
 }
