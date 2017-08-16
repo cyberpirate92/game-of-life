@@ -2,11 +2,11 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Timer;
@@ -48,7 +48,7 @@ public class MainWindow extends JFrame {
 	private int currentGridSize;
 	private int curGeneration, curPopulation, maxPopulation, minPopulation, avgPopulation, totPopulation;
 	private JPanel[][] grid;
-	JButton init, start, stop, plusOne, reset;
+	private JButton init, start, stop, plusOne, reset;
 	private int[][] cells;
 	private JPanel gridPanel, settingsPanel;
 	private JLabel cgLabel, cpLabel, mxpLabel, mnpLabel, agpLabel, pdLabel;
@@ -58,9 +58,6 @@ public class MainWindow extends JFrame {
 	public MainWindow() {
 		super("Game of life");
 		
-		curPopulation = 0;
-		curGeneration = 0;
-		inProgress = false;
 		currentGridSize = DEFAULT_GRID_SIZE;
 		grid = new JPanel[currentGridSize][currentGridSize];
 		cells = new int[currentGridSize][currentGridSize];
@@ -68,7 +65,8 @@ public class MainWindow extends JFrame {
 		gridPanel = new JPanel();
 		settingsPanel = new JPanel();
 		population = new ArrayList<Integer>();
-				
+		
+		initValues();
 		initGrid();
 		initSettings();
 
@@ -83,14 +81,71 @@ public class MainWindow extends JFrame {
 		this.setVisible(true);
 	}
 	
+	private void initValues() {
+		curPopulation = 0;
+		curGeneration = 0;
+		inProgress = false;
+		population.clear();
+		initLabels();
+		updateLabels();
+	}
+	
+	private void initLabels() {
+		cgLabel = getStylizedLabel("Current Generation: " + curGeneration);
+		cpLabel = getStylizedLabel("Current Population: " + curPopulation);
+		mxpLabel = getStylizedLabel("Maximum Population: " + maxPopulation);
+		mnpLabel = getStylizedLabel("Minimum Population: " + minPopulation);
+		pdLabel = getStylizedLabel("Percentage Change : " + percentToString(getPercentageDifference()));
+		agpLabel = getStylizedLabel("Average Population: " + avgPopulation);
+	}
+	
 	public void initGrid() {
 		gridPanel.setBackground(DEFAULT_GUI_BACKGROUND);
 		gridPanel.setLayout(new GridLayout(grid.length, grid.length, 0, 0));
 		for(int i=0; i<grid.length; i++) {
 			for(int j=0; j<grid[i].length; j++) {
+				final int x =i , y = j;
 				grid[i][j] = new JPanel();
 				grid[i][j].setBackground(DEFAULT_BACKGROUND);
 				grid[i][j].setBorder(DEFAULT_BORDER);
+				grid[i][j].addMouseListener(new MouseListener(){
+
+					@Override
+					public void mouseClicked(MouseEvent e) {
+						// TODO Auto-generated method stub
+						if(!inProgress) {
+							flipCell(x ,y);
+							if(!start.isEnabled()) {
+								start.setEnabled(true);
+							}
+						}
+					}
+
+					@Override
+					public void mousePressed(MouseEvent e) {
+						// TODO Auto-generated method stub
+						
+					}
+
+					@Override
+					public void mouseReleased(MouseEvent e) {
+						// TODO Auto-generated method stub
+						
+					}
+
+					@Override
+					public void mouseEntered(MouseEvent e) {
+						// TODO Auto-generated method stub
+						
+					}
+
+					@Override
+					public void mouseExited(MouseEvent e) {
+						// TODO Auto-generated method stub
+						
+					}
+					
+				});
 				gridPanel.add(grid[i][j]);
 			}
 		}
@@ -132,6 +187,7 @@ public class MainWindow extends JFrame {
 				grid = new JPanel[currentGridSize][currentGridSize];
 				cells = new int[currentGridSize][currentGridSize];
 				initGrid();
+				initValues();
 			}
 		});
 		
@@ -202,13 +258,9 @@ public class MainWindow extends JFrame {
 		temp.setBackground(DEFAULT_GUI_BACKGROUND);
 		temp.setForeground(DEFAULT_GUI_FOREGROUND);
 		temp.setLayout(new BoxLayout(temp, BoxLayout.Y_AXIS));
-		
-		cpLabel = getStylizedLabel("Current Generation: " + curGeneration);
-		mxpLabel = getStylizedLabel("Maximum Population: " + maxPopulation);
-		mnpLabel = getStylizedLabel("Minimum Population: " + minPopulation);
-		pdLabel = getStylizedLabel("Percentage Change : " + percentToString(getPercentageDifference()));
-		agpLabel = getStylizedLabel("Average Population: " + avgPopulation);
-		
+		temp.add(getStylizedLabel("Select cells to make live/dead and start when done"));
+		temp.add(getStylizedLabel("----- ----- ----- ----- -----"));
+		temp.add(cgLabel);
 		temp.add(cpLabel);
 		temp.add(mxpLabel);
 		temp.add(mnpLabel);
@@ -376,7 +428,7 @@ public class MainWindow extends JFrame {
 	private float getPercentageDifference() {
 		int difference = getPopulationDifference();
 		float percent;
-		if(curGeneration != 0)
+		if(population.size() >= 2)
 			percent = (difference / population.get(population.size()-2)) * 100;
 		else
 			percent = 100;
@@ -394,7 +446,8 @@ public class MainWindow extends JFrame {
 	}
 	
 	private void updateLabels() {
-		cpLabel.setText("Current Generation: " + curGeneration);
+		cgLabel.setText("Current Generation: " + curGeneration);
+		cpLabel.setText("Current Population: " + curPopulation);
 		mxpLabel.setText("Maximum Population: " + maxPopulation);
 		mnpLabel.setText("Minimum Population: " + minPopulation);
 		pdLabel.setText("Percentage Change : " + percentToString(getPercentageDifference()));
