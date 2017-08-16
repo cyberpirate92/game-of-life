@@ -77,6 +77,7 @@ public class MainWindow extends JFrame {
 		settingsPanel = new JPanel();
 		population = new ArrayList<Integer>();
 		
+		initLabels();
 		initValues();
 		initGrid();
 		initSettings();
@@ -117,10 +118,12 @@ public class MainWindow extends JFrame {
 	private void initValues() {
 		curPopulation = 0;
 		curGeneration = 0;
+		maxPopulation = 0;
+		minPopulation = 0;
+		avgPopulation = 0;
 		inProgress = false;
 		mousePressed = false;
 		population.clear();
-		initLabels();
 		updateLabels();
 	}
 	
@@ -221,6 +224,7 @@ public class MainWindow extends JFrame {
 				if(inProgress)
 					haltGame();
 				killAll();
+				initValues();
 				initButtons();
 			}
 		});
@@ -294,8 +298,8 @@ public class MainWindow extends JFrame {
 		temp.setBackground(DEFAULT_GUI_BACKGROUND);
 		temp.setForeground(DEFAULT_GUI_FOREGROUND);
 		temp.setLayout(new BoxLayout(temp, BoxLayout.Y_AXIS));
-		temp.add(getStylizedLabel("Cells can either be selected or randomly initialized or both"));
-		temp.add(getStylizedLabel("----- ----- ----- ----- ----- ----- ----- ----- ----- -----"));
+		temp.add(getStylizedLabel("Cells can be selected or randomly initialized"));
+		temp.add(getStylizedLabel("----- ----- ----- ----- ----- ----- ----- -----"));
 		temp.add(cgLabel);
 		temp.add(cpLabel);
 		temp.add(mxpLabel);
@@ -477,7 +481,7 @@ public class MainWindow extends JFrame {
 		if(population.size() >= 2 && population.get(population.size()-2) > 0)
 			percent = (difference / population.get(population.size()-2)) * 100;
 		else
-			percent = 100;
+			percent = 0;
 		return percent;
 	}
 	
