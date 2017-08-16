@@ -2,11 +2,15 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Timer;
@@ -17,6 +21,7 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.border.Border;
 
@@ -34,7 +39,9 @@ public class MainWindow extends JFrame {
 	private static final Color DEFAULT_GUI_BACKGROUND = Color.BLACK;
 	private static final Color DEFAULT_GUI_FOREGROUND = Color.GREEN;
 	private static final Border DEFAULT_BORDER = BorderFactory.createLineBorder(Color.DARK_GRAY);
-	private static final Font DEFAULT_GUI_FONT = new Font("Unifont", Font.PLAIN, 13);
+	private static final Font DEFAULT_GUI_FONT = new Font("Unifont", Font.PLAIN, 12);
+	private static final Font INFO_FONT = new Font("Monaco", Font.BOLD, 14);
+	private static final Font STATUS_FONT = new Font("Monaco", Font.BOLD, 12);
 	
 	// Unicode characters
 	private static final String PLAY = "START \u23F5";
@@ -53,8 +60,11 @@ public class MainWindow extends JFrame {
 	private int[][] cells;
 	private JPanel gridPanel, settingsPanel;
 	private JLabel cgLabel, cpLabel, mxpLabel, mnpLabel, agpLabel, pdLabel;
+	private JLabel statusLabel;
 	private Timer tickTimer;
 	private ArrayList<Integer> population;
+	private boolean mousePressed;
+	private Point lastMouseOverPoint;
 	
 	public MainWindow() {
 		super("Game of life");
@@ -70,13 +80,35 @@ public class MainWindow extends JFrame {
 		initValues();
 		initGrid();
 		initSettings();
+		
+		JPanel temp = new JPanel();
+		temp.setLayout(new GridLayout(1, 2, 0, 0));
+		temp.add(gridPanel);
+		temp.add(settingsPanel);
+		
+		JPanel statusPanel = new JPanel();
+		statusPanel.setLayout(new BorderLayout());
+		statusPanel.setBackground(DEFAULT_GUI_BACKGROUND);
+		statusLabel = getStylizedLabel(STATUS_FONT, DEFAULT_GUI_FOREGROUND);
+		clearStatusLabel();
+		statusPanel.add(statusLabel);
 
 		this.getContentPane().setBackground(DEFAULT_GUI_BACKGROUND);
-		this.getContentPane().setLayout(new GridLayout(1, 2, 0, 0));
-		this.getContentPane().add(gridPanel);
-		this.getContentPane().add(settingsPanel);
+		this.getContentPane().setLayout(new BorderLayout());
+		this.getContentPane().add(temp, BorderLayout.CENTER);
+		this.getContentPane().add(statusPanel, BorderLayout.SOUTH);
 		
-		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		this.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				if(confirmExit()) {
+					MainWindow.this.dispose();
+					System.exit(0);
+				}
+			}
+		});
+		
+		this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		this.setSize(900, 500);
 		this.setLocationRelativeTo(null);
 		this.setVisible(true);
@@ -86,6 +118,7 @@ public class MainWindow extends JFrame {
 		curPopulation = 0;
 		curGeneration = 0;
 		inProgress = false;
+		mousePressed = false;
 		population.clear();
 		initLabels();
 		updateLabels();
@@ -124,28 +157,29 @@ public class MainWindow extends JFrame {
 
 					@Override
 					public void mousePressed(MouseEvent e) {
-						// TODO Auto-generated method stub
-						
+						mousePressed = true;
 					}
 
 					@Override
 					public void mouseReleased(MouseEvent e) {
-						// TODO Auto-generated method stub
-						
+						mousePressed = false;
+						if(!start.isEnabled()) {
+							start.setEnabled(true);
+						}
 					}
 
 					@Override
 					public void mouseEntered(MouseEvent e) {
-						// TODO Auto-generated method stub
-						
+						setLastPoint(new Point(x, y));
+						if(mousePressed && !inProgress) {
+							flipCell(x, y);
+						}
 					}
 
 					@Override
 					public void mouseExited(MouseEvent e) {
-						// TODO Auto-generated method stub
-						
+						clearStatusLabel();
 					}
-					
 				});
 				gridPanel.add(grid[i][j]);
 			}
@@ -238,8 +272,10 @@ public class MainWindow extends JFrame {
 		topPanel.add(init);
 		topPanel.add(reset);
 		
-		centerPanel.setLayout(new BorderLayout());
-		centerPanel.add(getStatsPanel(), BorderLayout.CENTER);
+		//centerPanel.setLayout(new BorderLayout());
+		GridBagConstraints constraints = new GridBagConstraints();
+		centerPanel.setLayout(new GridBagLayout());
+		centerPanel.add(getStatsPanel(), constraints);
 		centerPanel.setForeground(DEFAULT_GUI_FOREGROUND);
 		
 		bottomPanel.setLayout(new GridLayout(1, 3, 0, 0));
@@ -258,8 +294,8 @@ public class MainWindow extends JFrame {
 		temp.setBackground(DEFAULT_GUI_BACKGROUND);
 		temp.setForeground(DEFAULT_GUI_FOREGROUND);
 		temp.setLayout(new BoxLayout(temp, BoxLayout.Y_AXIS));
-		temp.add(getStylizedLabel("Select cells to make live/dead and start when done"));
-		temp.add(getStylizedLabel("----- ----- ----- ----- -----"));
+		temp.add(getStylizedLabel("Cells can either be selected or randomly initialized or both"));
+		temp.add(getStylizedLabel("----- ----- ----- ----- ----- ----- ----- ----- ----- -----"));
 		temp.add(cgLabel);
 		temp.add(cpLabel);
 		temp.add(mxpLabel);
@@ -274,9 +310,15 @@ public class MainWindow extends JFrame {
 	}
 	
 	private JLabel getStylizedLabel(String text) {
-		JLabel label = new JLabel(text);
-		//label.setBackground(DEFAULT_GUI_BACKGROUND);
-		//label.setFont(DEFAULT_GUI_FONT);
+		JLabel label = getStylizedLabel(INFO_FONT, DEFAULT_GUI_FOREGROUND);
+		label.setText(text);
+		return label;
+	}
+	
+	private JLabel getStylizedLabel(Font font, Color fontColor) {
+		JLabel label = new JLabel();
+		label.setFont(font);
+		label.setForeground(fontColor);
 		label.setForeground(DEFAULT_GUI_FOREGROUND);
 		return label;
 	}
@@ -432,7 +474,7 @@ public class MainWindow extends JFrame {
 	private float getPercentageDifference() {
 		int difference = getPopulationDifference();
 		float percent;
-		if(population.size() >= 2 && population.get(population.size()-2) != 0)
+		if(population.size() >= 2 && population.get(population.size()-2) > 0)
 			percent = (difference / population.get(population.size()-2)) * 100;
 		else
 			percent = 100;
@@ -485,5 +527,27 @@ public class MainWindow extends JFrame {
 		stop.setEnabled(false);
 		plusOne.setEnabled(false);
 		init.setEnabled(true);
+	}
+	
+	private void setLastPoint(Point p) {
+		lastMouseOverPoint = p;
+		updateStatusLabel("Position: " + p);
+	}
+	
+	private void updateStatusLabel(String text) {
+		statusLabel.setText(text);
+	}
+	
+	private void clearStatusLabel() {
+		statusLabel.setText("..");
+	}
+	
+	private boolean confirmExit() {
+		int result = showConfirmDialog("Confirm Exit", "Sure you want to exit?");
+		return result == JOptionPane.YES_OPTION;
+	}
+	
+	private int showConfirmDialog(String title, String text) {
+		return JOptionPane.showConfirmDialog(this, text, title, JOptionPane.YES_NO_OPTION);
 	}
 }
