@@ -30,6 +30,7 @@ public class MainWindow extends JFrame {
 	
 	private static final Color DEFAULT_BACKGROUND = Color.BLACK;
 	private static final Color DEFAULT_CELL_COLOR = Color.GREEN;
+	private static final Color DEFAULT_DEAD_COLOR = Color.DARK_GRAY;
 	private static final Color DEFAULT_GUI_BACKGROUND = Color.BLACK;
 	private static final Color DEFAULT_GUI_FOREGROUND = Color.GREEN;
 	private static final Border DEFAULT_BORDER = BorderFactory.createLineBorder(Color.DARK_GRAY);
@@ -182,12 +183,11 @@ public class MainWindow extends JFrame {
 		reset.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				System.out.println("Resetting grid");
 				if(inProgress)
 					haltGame();
-				grid = new JPanel[currentGridSize][currentGridSize];
-				cells = new int[currentGridSize][currentGridSize];
-				initGrid();
-				initValues();
+				killAll();
+				initButtons();
 			}
 		});
 		
@@ -305,8 +305,12 @@ public class MainWindow extends JFrame {
 	}
 	
 	private void makeDead(int x, int y) {
+		makeDead(x, y, DEFAULT_DEAD_COLOR);
+	}
+	
+	private void makeDead(int x, int y, Color color) {
 		cells[x][y] = DEAD;
-		grid[x][y].setBackground(DEFAULT_BACKGROUND);
+		grid[x][y].setBackground(color);
 		curPopulation--;
 		updateStats();
 	}
@@ -396,7 +400,7 @@ public class MainWindow extends JFrame {
 		totPopulation += curPopulation;
 		avgPopulation = totPopulation/curGeneration;
 		updateLabels();
-		if(isTerminalStage()) {
+		if(isTerminalStage() || curPopulation == 0) {
 			haltGame();
 		}
 	}
@@ -428,7 +432,7 @@ public class MainWindow extends JFrame {
 	private float getPercentageDifference() {
 		int difference = getPopulationDifference();
 		float percent;
-		if(population.size() >= 2)
+		if(population.size() >= 2 && population.get(population.size()-2) != 0)
 			percent = (difference / population.get(population.size()-2)) * 100;
 		else
 			percent = 100;
@@ -455,14 +459,31 @@ public class MainWindow extends JFrame {
 	}
 	
 	private boolean isTerminalStage() {
-		if(population.size() > 25) {
+		/*if(population.size() > 25) {
 			int i;
 			for(i=population.size()-2; i>0; i--)
 				if(population.get(i+1) != population.get(i))
 					break;
 			if(population.size() - i >= 25)
 				return true;
-		}
+		}*/
 		return false;
+	}
+	
+	private void killAll() {
+		for(int i=0; i<cells.length; i++)
+			for(int j=0; j<cells[i].length; j++) {
+				if(isAlive(i, j))
+					makeDead(i, j, DEFAULT_BACKGROUND);
+				else
+					grid[i][j].setBackground(DEFAULT_BACKGROUND);
+			}
+	}
+	
+	private void initButtons() {
+		start.setEnabled(false);
+		stop.setEnabled(false);
+		plusOne.setEnabled(false);
+		init.setEnabled(true);
 	}
 }
