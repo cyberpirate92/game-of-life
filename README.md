@@ -27,5 +27,5 @@ You can read more on it [here](https://en.wikipedia.org/wiki/Conway%27s_Game_of_
 
 ## Running the program
 
-1. Compile: `javac MainWindow.java`.
-2. Run: `java MainWindow`.
+1. Compile: `javac Test.java`.
+2. Run: `java Test`.
