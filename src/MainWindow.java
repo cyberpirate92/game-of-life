@@ -155,6 +155,7 @@ public class MainWindow extends JFrame {
 							if(!start.isEnabled()) {
 								start.setEnabled(true);
 							}
+							minPopulation = curPopulation;
 						}
 					}
 
@@ -169,6 +170,7 @@ public class MainWindow extends JFrame {
 						if(!start.isEnabled()) {
 							start.setEnabled(true);
 						}
+						minPopulation = curPopulation;
 					}
 
 					@Override
@@ -394,6 +396,7 @@ public class MainWindow extends JFrame {
 			flipCell(r.nextInt(currentGridSize), r.nextInt(currentGridSize));
 		population.clear();
 		population.add(curPopulation);
+		minPopulation = curPopulation;
 		updateStats();
 	}
 	
