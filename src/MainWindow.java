@@ -12,6 +12,7 @@ import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -19,38 +20,52 @@ import java.util.TimerTask;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JSlider;
 import javax.swing.border.Border;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 
 public class MainWindow extends JFrame {
 	
 	private static final int DEAD = 0;
 	private static final int ALIVE = 1;
-	private static final int THRESHOLD = 250;
-	private static final int DEFAULT_GRID_SIZE = 50;
+	private static final int DEFAULT_GRID_SIZE = 75;
+	private static final int THRESHOLD = (int)(Math.pow(DEFAULT_GRID_SIZE, 2) * (0.25f));
+	private static final int DEFAULT_PADDING = 5;
+	
+	private static final int WINDOW_WIDTH = 1375;
+	private static final int WINDOW_HEIGHT = 782;
+	
+	private static final int MIN_TICK_INTERVAL = 25;
+	private static final int MAX_TICK_INTERVAL = 151;
+	private static final int INITIAL_TICK_INTERVAL = 85;
 	
 	private static final Color DEFAULT_BACKGROUND = Color.BLACK;
 	private static final Color DEFAULT_CELL_COLOR = Color.GREEN;
 	private static final Color DEFAULT_DEAD_COLOR = Color.DARK_GRAY;
 	private static final Color DEFAULT_GUI_BACKGROUND = Color.BLACK;
 	private static final Color DEFAULT_GUI_FOREGROUND = Color.GREEN;
+	private static final Color PANEL_BORDER_COLOR = Color.YELLOW;
+	
 	private static final Border DEFAULT_BORDER = BorderFactory.createLineBorder(Color.DARK_GRAY);
+	
 	private static final Font DEFAULT_GUI_FONT = new Font("Unifont", Font.PLAIN, 12);
 	private static final Font INFO_FONT = new Font("Monaco", Font.BOLD, 14);
 	private static final Font STATUS_FONT = new Font("Monaco", Font.BOLD, 12);
+	private static final Font SLIDER_FONT = new Font("Monaco", Font.BOLD, 8);
 	
-	// Unicode characters
 	private static final String PLAY = "START \u23F5";
-	private static final String PAUSE = "PAUSE \u23F8";
 	private static final String STOP = "STOP \u23F9";
 	private static final String UP_ARROW = "\u2191";
 	private static final String DOWN_ARROW = "\u2193"; 
-	
-	private static final int TICK_INTERVAL = 100; //milliseconds
 	
 	private boolean inProgress;
 	private int currentGridSize;
@@ -65,10 +80,16 @@ public class MainWindow extends JFrame {
 	private ArrayList<Integer> population;
 	private boolean mousePressed;
 	private Point lastMouseOverPoint;
+	private JSlider frameRateSlider;
+	private int curTickInterval;
+	private JCheckBox gridBorderCheck;
+	private JCheckBox leaveTrailCheck;
+	private JCheckBox wrapGridCheck;
 	
 	public MainWindow() {
 		super("Game of life");
 		
+		curTickInterval = INITIAL_TICK_INTERVAL;
 		currentGridSize = DEFAULT_GRID_SIZE;
 		grid = new JPanel[currentGridSize][currentGridSize];
 		cells = new int[currentGridSize][currentGridSize];
@@ -110,7 +131,7 @@ public class MainWindow extends JFrame {
 		});
 		
 		this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-		this.setSize(900, 500);
+		this.setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
 		this.setLocationRelativeTo(null);
 		this.setVisible(true);
 	}
@@ -192,15 +213,17 @@ public class MainWindow extends JFrame {
 	}
 	
 	public void initSettings() {
-		JPanel topPanel, centerPanel, bottomPanel;
+		JPanel topPanel, centerPanel, bottomPanel, leftPanel;
 		
 		topPanel = new JPanel();
 		centerPanel = new JPanel();
 		bottomPanel = new JPanel();
+		leftPanel = new JPanel();
 		
 		topPanel.setBackground(DEFAULT_GUI_BACKGROUND);
 		centerPanel.setBackground(DEFAULT_GUI_BACKGROUND);
 		bottomPanel.setBackground(DEFAULT_GUI_BACKGROUND);
+		//leftPanel.setBackground(DEFAULT_GUI_BACKGROUND);
 		
 		reset = new JButton("Reset");
 		init = new JButton("Random Initialization");
@@ -228,6 +251,7 @@ public class MainWindow extends JFrame {
 				killAll();
 				initValues();
 				initButtons();
+				System.out.println("Window size: " + new Point(getWidth(), getHeight()));
 			}
 		});
 		
@@ -238,6 +262,7 @@ public class MainWindow extends JFrame {
 					generateRandomPopulation();
 					start.setEnabled(true);
 					reset.setEnabled(true);
+					plusOne.setEnabled(true);
 				}
 			}
 		});
@@ -246,23 +271,19 @@ public class MainWindow extends JFrame {
 		start.addActionListener(new ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if(start.getText().equals(PLAY)) {
-					start.setText(PAUSE);
-					stop.setEnabled(true);
-					plusOne.setEnabled(false);
-					inProgress = true;
-					startTicking();
-				}
-				else {
-					start.setText(PLAY);
-					plusOne.setEnabled(true);
-				}
+				
+				stop.setEnabled(true);
+				plusOne.setEnabled(false);
+				inProgress = true;
+				startTicking();
+				
 			}
 		});
 		
 		stop.addActionListener(new ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				plusOne.setEnabled(true);
 				haltGame();
 			}
 		});
@@ -278,10 +299,15 @@ public class MainWindow extends JFrame {
 		topPanel.add(init);
 		topPanel.add(reset);
 		
-		//centerPanel.setLayout(new BorderLayout());
+		JPanel temp = new JPanel();
+		temp.setLayout(new GridLayout(2, 1, 0, 0));
+		temp.setBackground(DEFAULT_GUI_BACKGROUND);
+		temp.add(getStatsPanel());
+		temp.add(getControlPanel());
+		
 		GridBagConstraints constraints = new GridBagConstraints();
 		centerPanel.setLayout(new GridBagLayout());
-		centerPanel.add(getStatsPanel(), constraints);
+		centerPanel.add(temp, constraints);
 		centerPanel.setForeground(DEFAULT_GUI_FOREGROUND);
 		
 		bottomPanel.setLayout(new GridLayout(1, 3, 0, 0));
@@ -289,10 +315,17 @@ public class MainWindow extends JFrame {
 		bottomPanel.add(stop);
 		bottomPanel.add(plusOne);
 		
+		leftPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+		leftPanel.setBackground(DEFAULT_GUI_BACKGROUND);
+		if(frameRateSlider == null)
+			initSlider();
+		leftPanel.add(frameRateSlider);
+		
 		settingsPanel.setLayout(new BorderLayout());
 		settingsPanel.add(topPanel, BorderLayout.NORTH);
 		settingsPanel.add(centerPanel, BorderLayout.CENTER);
 		settingsPanel.add(bottomPanel, BorderLayout.SOUTH);
+		settingsPanel.add(leftPanel, BorderLayout.WEST);
 	}
 	
 	private JPanel getStatsPanel() {
@@ -308,7 +341,107 @@ public class MainWindow extends JFrame {
 		temp.add(mnpLabel);
 		temp.add(pdLabel);
 		temp.add(agpLabel);
+		temp.setBorder(getTextPanelBorder("STATS"));
 		return temp;
+	}
+	
+	private JPanel getControlPanel() {
+		JPanel panel = new JPanel();
+		JPanel tempPanel = new JPanel();
+		
+		gridBorderCheck = new JCheckBox();
+		leaveTrailCheck = new JCheckBox();
+		wrapGridCheck = new JCheckBox();
+		gridBorderCheck.setSelected(true);
+		leaveTrailCheck.setSelected(true);
+		wrapGridCheck.setSelected(false);
+		
+		// event listeners
+		gridBorderCheck.addChangeListener(new ChangeListener() {
+			@Override
+			public void stateChanged(ChangeEvent e) {
+				if(gridBorderCheck.isSelected()) {
+					enableGridBorders();
+				}
+				else {
+					disableGridBorders();
+				}
+			}
+		});
+		
+		leaveTrailCheck.addChangeListener(new ChangeListener() {
+			@Override
+			public void stateChanged(ChangeEvent e) {
+				if(leaveTrailCheck.isSelected()) {
+					enableTrails();
+				}
+				else {
+					disableTrails();
+				}
+			}
+		});
+		
+		wrapGridCheck.addChangeListener(new ChangeListener() {
+			@Override
+			public void stateChanged(ChangeEvent e) {
+				if(!inProgress) {
+					if(wrapGridCheck.isSelected()) {
+						enableGridWrapping();
+					}
+					else {
+						disableGridWrapping();
+					}
+				}
+			}
+		});
+		
+		tempPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+		tempPanel.add(getStylizedLabel("Grid Borders"));
+		tempPanel.add(gridBorderCheck);
+		tempPanel.add(getStylizedLabel("Leave Trails"));
+		tempPanel.add(leaveTrailCheck);
+		tempPanel.add(getStylizedLabel("Wrap grid borders"));
+		tempPanel.add(wrapGridCheck);
+		tempPanel.setBackground(DEFAULT_GUI_BACKGROUND);
+		tempPanel.setForeground(DEFAULT_GUI_FOREGROUND);
+		
+		panel.setBackground(DEFAULT_GUI_BACKGROUND);
+		panel.setForeground(DEFAULT_GUI_FOREGROUND);
+		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+		panel.add(tempPanel);
+		panel.setBorder(getTextPanelBorder("SETTINGS"));
+		return panel;
+	}
+	
+	private void initSlider() {
+		
+		frameRateSlider = new JSlider(JSlider.VERTICAL, MIN_TICK_INTERVAL, 
+				MAX_TICK_INTERVAL, INITIAL_TICK_INTERVAL);
+		
+		frameRateSlider.setSnapToTicks(true);
+		frameRateSlider.setPaintLabels(true);
+		frameRateSlider.setPaintTicks(true);
+		frameRateSlider.setForeground(DEFAULT_GUI_FOREGROUND);
+		
+		int medium = (MAX_TICK_INTERVAL + MIN_TICK_INTERVAL)/2;
+		Hashtable<Integer, JLabel> sliderLabels = new Hashtable<Integer, JLabel>();
+		
+		sliderLabels.put(new Integer(MIN_TICK_INTERVAL), getStylizedLabel(SLIDER_FONT, DEFAULT_GUI_FOREGROUND ,"FAST"));
+		sliderLabels.put(new Integer(medium), getStylizedLabel(SLIDER_FONT, DEFAULT_GUI_FOREGROUND ,"MED"));
+		sliderLabels.put(new Integer(MAX_TICK_INTERVAL), getStylizedLabel(SLIDER_FONT, DEFAULT_GUI_FOREGROUND ,"SLOW"));
+		
+		frameRateSlider.setLabelTable(sliderLabels);
+		
+		frameRateSlider.addChangeListener(new ChangeListener() {
+			@Override
+			public void stateChanged(ChangeEvent e) {
+				JSlider slider = (JSlider)e.getSource();
+				System.out.println("current frame rate: " + slider.getValue());
+				setTickInterval(slider.getValue());
+			}
+		});
+		
+		frameRateSlider.setBorder(getTextPanelBorder("SPEED"));
 	}
 	
 	private JLabel getStylizedLabel() {
@@ -316,16 +449,19 @@ public class MainWindow extends JFrame {
 	}
 	
 	private JLabel getStylizedLabel(String text) {
-		JLabel label = getStylizedLabel(INFO_FONT, DEFAULT_GUI_FOREGROUND);
-		label.setText(text);
-		return label;
+		return getStylizedLabel(INFO_FONT, DEFAULT_GUI_FOREGROUND, text);
 	}
 	
 	private JLabel getStylizedLabel(Font font, Color fontColor) {
+		return getStylizedLabel(font, fontColor, "");
+	}
+	
+	private JLabel getStylizedLabel(Font font, Color fontColor, String labelText) {
 		JLabel label = new JLabel();
 		label.setFont(font);
 		label.setForeground(fontColor);
 		label.setForeground(DEFAULT_GUI_FOREGROUND);
+		label.setText(labelText);
 		return label;
 	}
 	
@@ -336,7 +472,7 @@ public class MainWindow extends JFrame {
 			public void run() {
 				advanceToNextGen();
 			}
-		}, 0, TICK_INTERVAL);
+		}, 0, curTickInterval);
 	}
 	
 	private void stopTicking() {
@@ -447,7 +583,7 @@ public class MainWindow extends JFrame {
 		curGeneration++;
 		population.add(curPopulation);
 		totPopulation += curPopulation;
-		avgPopulation = totPopulation/curGeneration;
+		avgPopulation = totPopulation/population.size();
 		updateLabels();
 		if(isTerminalStage() || curPopulation == 0) {
 			haltGame();
@@ -481,7 +617,7 @@ public class MainWindow extends JFrame {
 	private float getPercentageDifference() {
 		int difference = getPopulationDifference();
 		float percent;
-		if(population.size() >= 2 && population.get(population.size()-2) > 0)
+		if(population.size() >= 2 && population.get(population.size()-2) != 0)
 			percent = (difference / population.get(population.size()-2)) * 100;
 		else
 			percent = 0;
@@ -556,5 +692,55 @@ public class MainWindow extends JFrame {
 	
 	private int showConfirmDialog(String title, String text) {
 		return JOptionPane.showConfirmDialog(this, text, title, JOptionPane.YES_NO_OPTION);
+	}
+	
+	private void setTickInterval(int value) {
+		if(curTickInterval != value) {
+			curTickInterval = value;
+			if(inProgress && tickTimer != null) {
+				stopTicking();
+				startTicking();
+			}
+		}
+	}
+	
+	private void enableGridBorders() {
+		// TODO
+	}
+	
+	private void disableGridBorders() {
+		// TODO
+	}
+	
+	private void enableTrails() {
+		// TODO
+	}
+	
+	private void disableTrails() {
+		// TODO
+	}
+	
+	private void enableGridWrapping() {
+		// TODO
+	}
+	
+	private void disableGridWrapping() {
+		// TODO
+	}
+	
+	private Border getTextPanelBorder(String title, int padding) {
+		
+		TitledBorder titledBorder = BorderFactory.createTitledBorder(title);
+		titledBorder.setBorder(BorderFactory.createLineBorder(PANEL_BORDER_COLOR));
+		titledBorder.setTitleColor(PANEL_BORDER_COLOR);
+		titledBorder.setTitleFont(INFO_FONT);
+		
+		EmptyBorder emptyBorder = (EmptyBorder) BorderFactory.createEmptyBorder(padding, padding, padding, padding);
+		
+		return BorderFactory.createCompoundBorder(titledBorder, emptyBorder);
+	}
+	
+	private Border getTextPanelBorder(String title) {
+		return getTextPanelBorder(title, DEFAULT_PADDING);
 	}
 }
