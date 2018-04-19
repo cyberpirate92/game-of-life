@@ -1,6 +1,6 @@
 # Game of Life
 
-![gameoflifev1](https://user-images.githubusercontent.com/10222413/29358511-ee92eb52-8298-11e7-97c5-cd76f9132293.gif)
+![gameoflifev1](https://user-images.githubusercontent.com/10222413/29452169-ff3475b2-8422-11e7-8b29-ff0a79326715.png)
 
 This program helps you **experiment** with **Conway's game of life**.
 
